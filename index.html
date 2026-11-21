@@ -73,16 +73,18 @@ ARTICLE:
 }
 function rNew(){
   app.innerHTML=`<div class="c"><h2>Step 1: Get a practice set from Claude</h2>
-  <div class="mu">Choose the settings, copy the prompt, then paste it into a Claude chat followed by your article text. Claude will reply with a block of JSON.</div>
+  <div class="mu">Add your paragraph below.</div>
+  <div style="margin-top:10px"><textarea id="para" placeholder="Paste your article or paragraph here"></textarea><div class="mu" id="pwc" style="margin-top:4px">0 words</div></div>
   <div class="row"><div><label class="f">Difficulty</label><select id="df"><option>Easy</option><option selected>Medium</option><option>Hard</option></select></div>
   <div><label class="f">Questions</label><select id="nq"><option>4</option><option selected>5</option><option>6</option></select></div>
-  <button class="b" id="cp">Copy prompt</button><span id="cm" class="mu"></span></div></div>
+  <button class="b" id="cp">Copy prompt with paragraph</button><span id="cm" class="mu"></span></div></div>
   <div class="c"><h2>Step 2: Import and start</h2>
   <div class="mu">Paste Claude's JSON reply below.</div>
   <div style="margin-top:10px"><textarea id="js" placeholder='{"title": "...", "passage": "...", "questions": [...]}'></textarea></div>
   <div class="row"><div><label class="f">Time limit (min)</label><input id="tmin" type="number" min="1" max="90" placeholder="Auto" style="width:90px"></div>
   <button class="b p" id="go">Start practice</button></div><div id="msg" class="mu" style="margin-top:10px"></div></div>`;
-  $("#cp").onclick=async()=>{const t=promptText($("#df").value,$("#nq").value);
+  $("#para").oninput=()=>{$("#pwc").textContent=wc($("#para").value).toLocaleString()+" words"};
+  $("#cp").onclick=async()=>{const t=promptText($("#df").value,$("#nq").value)+$("#para").value.trim();
     try{await navigator.clipboard.writeText(t);$("#cm").textContent="Copied."}catch(e){const j=$("#js");j.value=t;j.select();$("#cm").textContent="Prompt placed in the box below. Copy it, then clear the box before importing."}};
   $("#go").onclick=start;
 }
@@ -96,9 +98,10 @@ function start(){
   startT();render();
 }
 function startT(){clearInterval(timer);timer=setInterval(()=>{if(!cur||cur.done)return clearInterval(timer);cur.left--;const t=$("#tm");if(t){t.textContent=fmt(cur.left);t.className="tm"+(cur.left<60?" lo":"")}if(cur.left<=0)submit()},1000)}
+const wc=t=>(String(t||"").trim().match(/\S+/g)||[]).length;
 const fmt=s=>{s=Math.max(0,s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
 function rTest(){
-  app.innerHTML=`<div class="bar"><div><b>${esc(cur.title)}</b> <span class="tag">${cur.df}</span></div><div><span id="tm" class="tm">${fmt(cur.left)}</span><button class="b p" id="sb">Submit</button></div></div>
+  app.innerHTML=`<div class="bar"><div><b>${esc(cur.title)}</b> <span class="tag">${cur.df}</span><span class="tag">${wc(cur.passage)} words</span></div><div><span id="tm" class="tm">${fmt(cur.left)}</span><button class="b p" id="sb">Submit</button></div></div>
   <div class="sp"><div class="c pas">${esc(cur.passage)}</div><div>${cur.qs.map((q,i)=>`<div class="c q"><span class="tag">${esc(q.type)}</span><b>Q${i+1}.</b> ${esc(q.q)}${q.options.map((o,j)=>`<label class="o${cur.ans[i]===j?" s":""}"><input type="radio" name="q${i}" data-i="${i}" data-j="${j}" ${cur.ans[i]===j?"checked":""}> ${esc(o)}</label>`).join("")}</div>`).join("")}</div></div>`;
   app.querySelectorAll("input[type=radio]").forEach(r=>r.onchange=()=>{cur.ans[r.dataset.i]=+r.dataset.j;app.querySelectorAll(`input[name=q${r.dataset.i}]`).forEach(x=>x.parentElement.classList.toggle("s",x.checked))});
   $("#sb").onclick=()=>{if(confirm("Submit your answers?"))submit()};
@@ -113,7 +116,7 @@ function rResult(r,back){
   const bt={};r.qs.forEach((q,i)=>{(bt[q.type]=bt[q.type]||[0,0]);bt[q.type][1]++;if(r.ans[i]===q.answer)bt[q.type][0]++});
   app.innerHTML=`${back?`<button class="b" onclick="view='hist';render()" style="margin-bottom:12px">&larr; Back to history</button>`:""}
   <div class="c"><h2>${esc(r.title)} <span class="tag">${r.df}</span></h2><div class="grid st">
-  <div><b>${r.score}/${n}</b>Score</div><div><b>${Math.round(r.score/n*100)}%</b>Accuracy</div><div><b>${fmt(r.used)}</b>Time used (of ${fmt(r.total)})</div><div><b>${wrong} / ${skip}</b>Incorrect / Skipped</div></div>
+  <div><b>${r.score}/${n}</b>Score</div><div><b>${Math.round(r.score/n*100)}%</b>Accuracy</div><div><b>${fmt(r.used)}</b>Time used (of ${fmt(r.total)})</div><div><b>${wrong} / ${skip}</b>Incorrect / Skipped</div><div><b>${wc(r.passage)}</b>Passage words${r.used>0?` (${Math.round(wc(r.passage)/(r.used/60))} wpm)`:""}</div></div>
   <div style="margin-top:12px">${Object.entries(bt).map(([k,v])=>`<span class="tag">${esc(k)}: ${v[0]}/${v[1]}</span>`).join("")}</div></div>
   <div class="sp"><div class="c pas">${esc(r.passage)}</div><div>${r.qs.map((q,i)=>`<div class="c q"><span class="tag">${esc(q.type)}</span><b>Q${i+1}.</b> ${esc(q.q)}${q.options.map((o,j)=>`<div class="o ${j===q.answer?"g":r.ans[i]===j?"x":""}">${esc(o)}${j===r.ans[i]?" <b>(your answer)</b>":""}${j===q.answer?" <b>&#10003;</b>":""}<div class="ex">${esc(q.why&&q.why[j]||"")}</div></div>`).join("")}</div>`).join("")}</div></div>
   ${back?"":`<button class="b p" onclick="view='new';cur=null;render()">Start new practice</button>`}`;
