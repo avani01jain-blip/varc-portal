@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>VARC Practice Portal</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--tx:#1b2433;--mu:#64708a;--ac:#2b4acb;--ac2:#e8edff;--hd:#14213d;--bd:#dde2ee;--ok:#1f8a4c;--no:#c9302c;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1420;--card:#182033;--tx:#e8ecf6;--mu:#9aa7c3;--ac:#7b94ff;--ac2:#232e52;--hd:#0a0f1c;--bd:#2a3550;--ok:#4cc380;--no:#ff7b76;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{background:var(--hd);color:#fff;padding:12px 20px 0}
+.hi0{max-width:1120px;margin:0 auto}
+.lg{font-weight:700;font-size:18px}.lg small{display:block;font-weight:400;font-size:12px;opacity:.7}
+nav{max-width:1120px;margin:8px auto 0;display:flex;gap:4px;overflow-x:auto}
+nav button{background:none;border:0;color:#c4cbe0;border-radius:8px 8px 0 0;padding:10px 16px;cursor:pointer;font:inherit;font-weight:500;white-space:nowrap}
+nav button.on{background:var(--bg);color:var(--ac);font-weight:600}
+.w{max-width:1120px;margin:0 auto;padding:20px}
+h2{font-size:18px;margin:0 0 4px}.mu{color:var(--mu);font-size:13px}
+button,select,textarea,input{font:inherit;color:var(--tx)}
+.b{border:1px solid var(--bd);background:var(--card);padding:8px 16px;border-radius:8px;cursor:pointer;font-weight:500}
+.b.p{background:var(--ac);color:#fff;border-color:var(--ac)}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:18px;margin-bottom:14px;box-shadow:0 1px 2px rgba(20,33,61,.05)}
+label.f{display:block;font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+textarea{width:100%;min-height:180px;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:12px}
+select,input[type=number]{background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:14px}
+.sp{display:grid;grid-template-columns:1.1fr 1fr;gap:14px;align-items:start}
+@media(max-width:800px){.sp{grid-template-columns:1fr}}
+.pas{max-height:78vh;overflow:auto;white-space:pre-wrap;font-family:Georgia,"Times New Roman",serif;font-size:16px;line-height:1.75}
+.bar{position:sticky;top:0;background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:10px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;z-index:5;flex-wrap:wrap}
+.tm{font:700 22px ui-monospace,Menlo,monospace;color:var(--ac);margin-right:10px}.tm.lo{color:var(--no)}
+.q{margin-bottom:14px}.o{display:block;padding:9px 12px;border:1px solid var(--bd);border-radius:8px;margin:7px 0;cursor:pointer}
+.o.s{background:var(--ac2);border-color:var(--ac)}.o.g{border-color:var(--ok)}.o.x{border-color:var(--no)}
+.tag{display:inline-block;background:var(--ac2);color:var(--ac);border-radius:6px;padding:1px 9px;font-size:12px;font-weight:600;margin-right:6px}
+.ex{font-size:13px;color:var(--mu);margin-top:2px}
+.hr{display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer}
+.st div{background:var(--ac2);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--mu)}.st b{font-size:22px;display:block;color:var(--tx)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-top:12px}
+ol{margin:6px 0 0;padding-left:20px}
+</style></head><body>
+<header><div class="hi0"><div class="lg">VARC Practice Portal<small>Reading Comprehension | CAT and XAT preparation</small></div></div>
+<nav><button id="n1" class="on">New Practice</button><button id="n2">History</button><button id="n3">Revision List</button></nav></header>
+<div class="w" id="app"></div>
+<script>
+const $=s=>document.querySelector(s),app=$("#app");
+const TIME={Easy:6,Medium:8,Hard:10};
+let hist=[],cur=null,timer=null,view="new";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ls={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+let revd=new Set(ls.get("rcrevd",[])),showRevd=false,fType="All";
+function loadHist(){hist=ls.get("rch",[]).sort((a,b)=>b.ts-a.ts)}
+function save(r){hist=[r,...hist.filter(h=>h.ts!==r.ts)];ls.set("rch",hist)}
+$("#n1").onclick=()=>{view="new";cur=null;render()};
+$("#n2").onclick=()=>{view="hist";clearInterval(timer);render()};
+$("#n3").onclick=()=>{view="rv";clearInterval(timer);render()};
+function render(){
+  ["new","hist","rv"].forEach((v,i)=>$("#n"+(i+1)).className=view===v?"on":"");
+  if(view==="hist")return rHist();
+  if(view==="rv")return rRev();
+  if(!cur)return rNew();
+  cur.done?rResult():rTest();
+}
+function promptText(df,nq){
+  const guide={Easy:"straightforward language, explicit main idea, mostly direct and detail questions, one simple inference",
+  Medium:"CAT-level, moderate abstraction, a mix of main idea, inference, tone, detail, and one strengthen/weaken style question",
+  Hard:"XAT/CAT top-end, dense abstract prose, subtle author stance, close-option inference questions, trap options (half-right, extreme, out of scope)"}[df];
+  return `You are a CAT/XAT verbal ability paper-setter. From the article below, produce a reading comprehension set at ${df} difficulty (${guide}).
+Rules: passage 450-650 words, built from the article's ideas but rewritten and condensed in your own words, self-contained, no headings. Write exactly ${nq} MCQs, 4 options each, exactly one correct. Vary question types. Write in clear, professional English. For each option, give a brief explanation of why it is right or wrong.
+Return ONLY raw JSON (no markdown fences, no extra text) in this format:
+{"title":"...","difficulty":"${df}","passage":"...","questions":[{"type":"Main idea|Inference|Tone|Detail|Strengthen/Weaken|Vocab in context|Application","q":"...","options":["...","...","...","..."],"answer":0,"why":["...","...","...","..."]}]}
+("answer" is the index 0-3 of the correct option.)
+
+ARTICLE:
+`;
+}
+function rNew(){
+  app.innerHTML=`<div class="c"><h2>Step 1: Get a practice set from Claude</h2>
+  <div class="mu">Choose the settings, copy the prompt, then paste it into a Claude chat followed by your article text. Claude will reply with a block of JSON.</div>
+  <div class="row"><div><label class="f">Difficulty</label><select id="df"><option>Easy</option><option selected>Medium</option><option>Hard</option></select></div>
+  <div><label class="f">Questions</label><select id="nq"><option>4</option><option selected>5</option><option>6</option></select></div>
+  <button class="b" id="cp">Copy prompt</button><span id="cm" class="mu"></span></div></div>
+  <div class="c"><h2>Step 2: Import and start</h2>
+  <div class="mu">Paste Claude's JSON reply below.</div>
+  <div style="margin-top:10px"><textarea id="js" placeholder='{"title": "...", "passage": "...", "questions": [...]}'></textarea></div>
+  <div class="row"><div><label class="f">Time limit (min)</label><input id="tmin" type="number" min="1" max="90" placeholder="Auto" style="width:90px"></div>
+  <button class="b p" id="go">Start practice</button></div><div id="msg" class="mu" style="margin-top:10px"></div></div>`;
+  $("#cp").onclick=async()=>{const t=promptText($("#df").value,$("#nq").value);
+    try{await navigator.clipboard.writeText(t);$("#cm").textContent="Copied."}catch(e){const j=$("#js");j.value=t;j.select();$("#cm").textContent="Prompt placed in the box below. Copy it, then clear the box before importing."}};
+  $("#go").onclick=start;
+}
+function start(){
+  const m=$("#msg");let r;
+  try{r=JSON.parse($("#js").value.trim().replace(/^```(?:json)?/i,"").replace(/```$/,"").trim())}catch(e){m.textContent="Could not read the JSON. Make sure you pasted Claude's full reply.";return}
+  if(!r.passage||!Array.isArray(r.questions)||!r.questions.length||r.questions.some(q=>!q.q||!Array.isArray(q.options)||typeof q.answer!=="number")){m.textContent="The JSON is missing required fields (passage, questions, options, answer).";return}
+  const df=TIME[r.difficulty]?r.difficulty:$("#df").value;
+  const mins=Math.min(90,Math.max(1,Math.round(+$("#tmin").value||TIME[df])));
+  cur={ts:Date.now(),df,title:r.title||"Untitled passage",passage:r.passage,qs:r.questions,ans:{},left:mins*60,total:mins*60,done:false};
+  startT();render();
+}
+function startT(){clearInterval(timer);timer=setInterval(()=>{if(!cur||cur.done)return clearInterval(timer);cur.left--;const t=$("#tm");if(t){t.textContent=fmt(cur.left);t.className="tm"+(cur.left<60?" lo":"")}if(cur.left<=0)submit()},1000)}
+const fmt=s=>{s=Math.max(0,s);return String(Math.floor(s/60)).padStart(2,"0")+":"+String(s%60).padStart(2,"0")};
+function rTest(){
+  app.innerHTML=`<div class="bar"><div><b>${esc(cur.title)}</b> <span class="tag">${cur.df}</span></div><div><span id="tm" class="tm">${fmt(cur.left)}</span><button class="b p" id="sb">Submit</button></div></div>
+  <div class="sp"><div class="c pas">${esc(cur.passage)}</div><div>${cur.qs.map((q,i)=>`<div class="c q"><span class="tag">${esc(q.type)}</span><b>Q${i+1}.</b> ${esc(q.q)}${q.options.map((o,j)=>`<label class="o${cur.ans[i]===j?" s":""}"><input type="radio" name="q${i}" data-i="${i}" data-j="${j}" ${cur.ans[i]===j?"checked":""}> ${esc(o)}</label>`).join("")}</div>`).join("")}</div></div>`;
+  app.querySelectorAll("input[type=radio]").forEach(r=>r.onchange=()=>{cur.ans[r.dataset.i]=+r.dataset.j;app.querySelectorAll(`input[name=q${r.dataset.i}]`).forEach(x=>x.parentElement.classList.toggle("s",x.checked))});
+  $("#sb").onclick=()=>{if(confirm("Submit your answers?"))submit()};
+}
+function submit(){
+  clearInterval(timer);cur.done=true;cur.used=cur.total-Math.max(0,cur.left);
+  cur.score=cur.qs.filter((q,i)=>cur.ans[i]===q.answer).length;
+  save(cur);render();
+}
+function rResult(r,back){
+  r=r||cur;const n=r.qs.length,wrong=r.qs.filter((q,i)=>r.ans[i]!==q.answer&&r.ans[i]!==undefined).length,skip=n-r.score-wrong;
+  const bt={};r.qs.forEach((q,i)=>{(bt[q.type]=bt[q.type]||[0,0]);bt[q.type][1]++;if(r.ans[i]===q.answer)bt[q.type][0]++});
+  app.innerHTML=`${back?`<button class="b" onclick="view='hist';render()" style="margin-bottom:12px">&larr; Back to history</button>`:""}
+  <div class="c"><h2>${esc(r.title)} <span class="tag">${r.df}</span></h2><div class="grid st">
+  <div><b>${r.score}/${n}</b>Score</div><div><b>${Math.round(r.score/n*100)}%</b>Accuracy</div><div><b>${fmt(r.used)}</b>Time used (of ${fmt(r.total)})</div><div><b>${wrong} / ${skip}</b>Incorrect / Skipped</div></div>
+  <div style="margin-top:12px">${Object.entries(bt).map(([k,v])=>`<span class="tag">${esc(k)}: ${v[0]}/${v[1]}</span>`).join("")}</div></div>
+  <div class="sp"><div class="c pas">${esc(r.passage)}</div><div>${r.qs.map((q,i)=>`<div class="c q"><span class="tag">${esc(q.type)}</span><b>Q${i+1}.</b> ${esc(q.q)}${q.options.map((o,j)=>`<div class="o ${j===q.answer?"g":r.ans[i]===j?"x":""}">${esc(o)}${j===r.ans[i]?" <b>(your answer)</b>":""}${j===q.answer?" <b>&#10003;</b>":""}<div class="ex">${esc(q.why&&q.why[j]||"")}</div></div>`).join("")}</div>`).join("")}</div></div>
+  ${back?"":`<button class="b p" onclick="view='new';cur=null;render()">Start new practice</button>`}`;
+}
+function rHist(){
+  const tools=`<div class="row" style="margin:0 0 14px"><button class="b" id="ex">Export backup</button><button class="b" id="im">Import backup</button><input type="file" id="fi" accept=".json" hidden><span class="mu">History is stored in this browser only. Export a backup to move it to another device.</span></div>`;
+  if(!hist.length){app.innerHTML=tools+`<div class="c mu">No attempts yet. Complete your first practice set and it will appear here.</div>`;bk();return}
+  const by={};hist.forEach(h=>{(by[h.df]=by[h.df]||[0,0,0]);by[h.df][0]+=h.score;by[h.df][1]+=h.qs.length;by[h.df][2]++});
+  const ty={};hist.forEach(h=>h.qs.forEach((q,i)=>{(ty[q.type]=ty[q.type]||[0,0]);ty[q.type][1]++;if(h.ans[i]===q.answer)ty[q.type][0]++}));
+  app.innerHTML=tools+`<div class="c"><h2>Performance summary</h2><div class="grid st"><div><b>${hist.length}</b>Sets completed</div>${Object.entries(by).map(([k,v])=>`<div><b>${Math.round(v[0]/v[1]*100)}%</b>${k} accuracy (${v[2]} sets)</div>`).join("")}</div>
+  <div style="margin-top:14px" class="mu">Accuracy by question type (weakest first)</div><div style="margin-top:6px">${Object.entries(ty).sort((a,b)=>a[1][0]/a[1][1]-b[1][0]/b[1][1]).map(([k,v])=>`<span class="tag">${esc(k)}: ${Math.round(v[0]/v[1]*100)}% (${v[1]})</span>`).join("")}</div></div>
+  ${hist.map((h,i)=>`<div class="c hr" data-i="${i}"><div><b>${esc(h.title)}</b><div class="mu">${new Date(h.ts).toLocaleString()} | ${fmt(h.used)} used</div></div><div><span class="tag">${h.df}</span><b>${h.score}/${h.qs.length}</b></div></div>`).join("")}`;
+  app.querySelectorAll(".hr").forEach(e=>e.onclick=()=>rResult(hist[+e.dataset.i],true));bk();
+}
+function bk(){
+  $("#ex").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify({hist,revd:[...revd]})],{type:"application/json"}));a.download="varc-backup.json";a.click()};
+  $("#im").onclick=()=>$("#fi").click();
+  $("#fi").onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const d=JSON.parse(t);const m=new Map(hist.map(h=>[h.ts,h]));(d.hist||[]).forEach(h=>m.set(h.ts,h));hist=[...m.values()].sort((a,b)=>b.ts-a.ts);ls.set("rch",hist);(d.revd||[]).forEach(x=>revd.add(x));ls.set("rcrevd",[...revd]);rHist()}catch(_){alert("Invalid backup file.")}})};
+}
+function rRev(){
+  const items=[];
+  hist.forEach(h=>h.qs.forEach((q,i)=>{if(h.ans[i]!==q.answer)items.push({id:h.ts+"-"+i,h,q,i,pick:h.ans[i]})}));
+  const types=["All",...new Set(items.map(x=>x.q.type))];
+  const list=items.filter(x=>(fType==="All"||x.q.type===fType)&&(showRevd||!revd.has(x.id)));
+  app.innerHTML=`<div class="c"><h2>Revision list</h2><div class="mu">All incorrect and skipped questions in one place. Mark each as revised once reviewed.</div>
+  <div class="row" style="align-items:center"><select id="ft">${types.map(t=>`<option ${t===fType?"selected":""}>${esc(t)}</option>`).join("")}</select>
+  <label><input type="checkbox" id="sr" ${showRevd?"checked":""}> Show revised items</label><span class="mu">${list.length} questions</span></div></div>
+  ${list.length?list.map(x=>`<div class="c q"><span class="tag">${esc(x.q.type)}</span><span class="tag">${x.h.df}</span><span class="mu">${esc(x.h.title)}</span><div style="margin-top:6px"><b>${esc(x.q.q)}</b></div>
+  <div class="o x">${x.pick===undefined?"Skipped":"Your answer: "+esc(x.q.options[x.pick])}<div class="ex">${esc(x.q.why&&x.q.why[x.pick]||"")}</div></div>
+  <div class="o g">Correct: ${esc(x.q.options[x.q.answer])} &#10003;<div class="ex">${esc(x.q.why&&x.q.why[x.q.answer]||"")}</div></div>
+  <label><input type="checkbox" class="rd" data-id="${x.id}" ${revd.has(x.id)?"checked":""}> Revised</label></div>`).join(""):`<div class="c mu">Nothing pending. Either everything is revised, or no mistakes have been recorded yet.</div>`}`;
+  $("#ft").onchange=e=>{fType=e.target.value;rRev()};
+  $("#sr").onchange=e=>{showRevd=e.target.checked;rRev()};
+  app.querySelectorAll(".rd").forEach(c=>c.onchange=()=>{c.checked?revd.add(c.dataset.id):revd.delete(c.dataset.id);ls.set("rcrevd",[...revd]);if(!showRevd)rRev()});
+}
+loadHist();render();
+</script></body></html>
